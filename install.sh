@@ -117,6 +117,7 @@ PACKAGES=(
     upower                    # Power management service
     gpu-screen-recorder       # Screen Recorder
     qt6ct                     # Qt Settings
+    yaru-icon-theme           # Yaru Icons
 )
 
 OPTIONALPKG=(
