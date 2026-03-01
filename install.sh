@@ -596,7 +596,7 @@ echo "--------------------------------------------------------"
 
 # Install noctalia-shell and noctaliia-qs via yay
 echo "Installing noctalia-shell and noctaliia-qs via yay..."
-sudo -u "$ACTUAL_USER" yay -S --noconfirm noctalia-shell noctaliia-qs
+sudo -u "$ACTUAL_USER" yay -S --noconfirm noctalia-shell noctalia-qs
 
 if [ $? -ne 0 ]; then
     echo "Warning: Failed to install noctalia-shell and/or noctaliia-qs."
