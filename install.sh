@@ -484,36 +484,6 @@ set_default_file_manager() {
     echo "Default file manager set to Thunar."
 }
 
-# Setup Noctalia user systemd service
-setup_noctalia_service() {
-    echo ""
-    echo "Setting up Noctalia systemd service..."
-
-    local user_systemd_dir="$ACTUAL_USER_HOME/.config/systemd/user"
-    local uid
-
-    uid=$(id -u "$ACTUAL_USER")
-
-    sudo -u "$ACTUAL_USER" mkdir -p "$user_systemd_dir"
-
-    sudo -u "$ACTUAL_USER" tee "$user_systemd_dir/noctalia.service" >/dev/null <<'EOF'
-[Unit]
-Description=Noctalia Shell Service
-After=default.target
-
-[Service]
-ExecStart=qs -c noctalia-shell
-Restart=on-failure
-RestartSec=1
-
-[Install]
-WantedBy=default.target
-EOF
-
-    sudo -u "$ACTUAL_USER" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user enable --now noctalia.service \
-        || echo "Warning: Failed to enable noctalia service. You may need to log in first."
-}
-
 # Create GTK bookmarks for Thunar
 create_thunar_bookmarks() {
     echo ""
@@ -624,12 +594,12 @@ echo "2. Reboot your system."
 echo "3. Select the Hyprland session at your login manager."
 echo "--------------------------------------------------------"
 
-# Install noctalia-shell-git via yay
-echo "Installing noctalia-shell-git via yay..."
-sudo -u "$ACTUAL_USER" yay -S --noconfirm noctalia-shell-git
+# Install noctalia-shell and noctaliia-qs via yay
+echo "Installing noctalia-shell and noctaliia-qs via yay..."
+sudo -u "$ACTUAL_USER" yay -S --noconfirm noctalia-shell noctaliia-qs
 
 if [ $? -ne 0 ]; then
-    echo "Warning: Failed to install noctalia-shell-git."
+    echo "Warning: Failed to install noctalia-shell and/or noctaliia-qs."
 fi
 
 # Browser installation
@@ -643,9 +613,6 @@ set_default_file_manager
 
 # Copy backup config files if available
 copy_backup_configs
-
-# Setup Noctalia systemd service
-setup_noctalia_service
 
 # Create Thunar bookmarks
 create_thunar_bookmarks
