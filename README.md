@@ -1,6 +1,6 @@
 <p align="center">
-  <img src="https://img.shields.io/github/last-commit/Echilonvibin/echilon-dotfiles" alt="Last Commit">
-  <img src="https://img.shields.io/github/commit-activity/w/Echilonvibin/echilon-dotfiles" alt="Commit Activity">
+  <img src="https://img.shields.io/github/last-commit/Echilonvibin/minimaLinux" alt="Last Commit">
+  <img src="https://img.shields.io/github/commit-activity/w/Echilonvibin/minimaLinux" alt="Commit Activity">
   <img src="https://img.shields.io/badge/license-GPL--3.0-blue" alt="License">
 </p>
 
@@ -15,15 +15,19 @@
 
 ### Fresh Install Requirement
 
-**This configuration is tailored for a FRESH INSTALL of VANILLA ARCH LINUX using the archinall script with the Hyprland profile.** We strongly advise against attempting this installation on derivative distributions (such as CachyOS, Manjaro, etc.) as package and configuration conflicts are highly likely. This includes packages you could install yourself, through Arch's repo, and a few AUR packages. This will install the chaotic AUR, the only AUR exclusive package that is installed, is the Noctalia bar itself. 
+**This configuration is tailored for a FRESH INSTALL of VANILLA ARCH LINUX using the archinstall script with the Hyprland profile.** We strongly advise against attempting this installation on derivative distributions (such as CachyOS, Manjaro, etc.) as package and configuration conflicts are highly likely. This includes packages you could install yourself, through Arch's repo, and a few AUR packages. This will install the chaotic AUR, the only AUR exclusive package that is installed, is the Noctalia bar itself. 
 
 ### Development Status
 
 This script, is now released. It is no longer in beta state. This project originally started as a vibe coded project to see what we could get away with. It quickly turned into only being an outline, as A.I is too frustrating to deal with after more than 80 lines of code. The rest, is completely scripted by tonekneeo, and myself.
 
+### What this does
+
+“This script turns a fresh Arch + Hyprland setup into the minimaLinux desktop by installing required packages, dropping useless ones and adding preconfigured streamlined dotfiles.”
+
 ### Nvidia Users
 
-Once in the system open ~/.config/hyprland/startup.conf and uncomment the Nvidia section then reboot.
+Once in the system open ~/.config/hypr/startup.conf and uncomment the Nvidia section then reboot.
 
 ### Credits
 
@@ -55,9 +59,9 @@ These dotfiles are provided strictly as a **template**. You **must** review and 
 | File/Section | Customization Needed | Notes |
 | :--- | :--- | :--- |
 | **`hypr/hyprland.conf`** | Monitor setup (resolution, scaling, refresh rate). | The current default is `monitor=,preferred,auto,1`. You may use `nwg-displays` to help configure and export precise settings. |
-| **`hypr/keybindings.conf`** | Set bindings here. | Super+E is to open your file explorer. Super+D is the app launcher. |
+| **`hypr/keybinds.conf`** | Set bindings here. | Super+E is to open your file explorer. Super+D is the app launcher. |
 | **Theming** | Color schemes, fonts, and global aesthetic settings. | The default theme is minimal. Customize these within Noctalia's settings, go to color scheme, and then templates, you can set kitty, GTK, or whatever else you would like to match your color scheme. |
-| *NOTE ON THEMING* | adw-gtk3-dark | This will be needed to make changes to GTK. This comes preinstalled, you will have to set it in GTK the Settings. |
+| *NOTE ON THEMING* | adw-gtk3-dark | This will be needed to make changes to GTK. This comes preinstalled, you will have to set it in GTK Settings. |
 | **`fastfetch/config.jsonc`** | Theming/Images. | Update the configuration for your specific image or ASCII art display. |
 
 ---
@@ -84,7 +88,7 @@ cd ./minimaLinux
 ### Step 3: Make the install script executable
 
 ```bash
-chmod+x ./install.sh
+chmod +x ./install.sh
 ```
 
 ### Step 4: Run the install script, YIPPE
@@ -93,14 +97,15 @@ sudo ./install.sh
 ```
 
 
-Note: The install.sh script handles package installation via your package manager and deploys the dotfiles, creating a backup of any existing configuration files it overwrites.
+Note: The install.sh script handles package installation via your package manager and deploys the dotfiles. Any existing config files that would be overwritten are first backed up with a `.bak.<timestamp>` suffix in `~/.config`, allowing `uninstall.sh` to restore them later.
 
-# 🗑️ Uninstallation
-If you need to revert the changes and restore your system to its previous state using the created backups, please follow these steps.
-
-### Step 1: Run the Uninstallation Script
-Navigate to the repository directory (if not already there) and execute the uninstall.sh script:
+## 🗑️ Uninstallation
+If you need to revert the changes, navigate to the repository directory and run:
 
 ```bash
 ./uninstall.sh
 ```
+
+This will restore any backed-up config files found in `~/.config` to their previous state.
+
+> **Note:** Installed packages are **not** automatically removed. If you wish to uninstall them, you will need to do so manually via `pacman` or `yay`.
