@@ -336,6 +336,18 @@ deploy_configs() {
 
     # Ensure target .config directory exists
     sudo -u "$ACTUAL_USER" mkdir -p "$CONFIG_DIR"
+
+    # Back up any existing configs that would be overwritten
+    BACKUP_TIMESTAMP=$(date +%s)
+    echo "Backing up existing configuration files..."
+    for item in "$CONFIG_SOURCE_ROOT"/*; do
+        name=$(basename "$item")
+        target="$CONFIG_DIR/$name"
+        if [ -e "$target" ] || [ -L "$target" ]; then
+            echo "  -> Backing up: $name to $name.bak.$BACKUP_TIMESTAMP"
+            mv "$target" "$CONFIG_DIR/$name.bak.$BACKUP_TIMESTAMP"
+        fi
+    done
     
     # Copy all contents from repo/.config to ~/.config
     echo "Copying all configuration files from $CONFIG_SOURCE_ROOT to $CONFIG_DIR..."
