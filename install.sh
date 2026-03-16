@@ -118,6 +118,7 @@ PACKAGES=(
     gpu-screen-recorder       # Screen Recorder
     qt6ct                     # Qt Settings
     yaru-icon-theme           # Yaru Icons
+    humanity-icon-theme       # Humanity Icons
 )
 
 OPTIONALPKG=(
