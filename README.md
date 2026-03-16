@@ -23,7 +23,7 @@ This script, is now released. It is no longer in beta state. This project origin
 
 ### What this does
 
-“This script turns a fresh Arch + Hyprland setup into the minimaLinux desktop by installing required packages, dropping useless ones and adding preconfigured streamlined dotfiles.”
+This script turns a fresh Arch + Hyprland setup into the minimaLinux desktop by installing required packages, dropping useless ones and adding preconfigured streamlined dotfiles.
 
 ### Nvidia Users
 
