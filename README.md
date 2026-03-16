@@ -21,6 +21,10 @@
 
 This script, is now released. It is no longer in beta state. This project originally started as a vibe coded project to see what we could get away with. It quickly turned into only being an outline, as A.I is too frustrating to deal with after more than 80 lines of code. The rest, is completely scripted by tonekneeo, and myself.
 
+### Nvidia Users
+
+Once in the system open ~/.config/hyprland/startup.conf and uncomment the Nvidia section then reboot.
+
 ### Credits
 
 The primary application bar (`noctalia-shell-git`) is based on the exceptional work by **Noctalia**. All credit for the bar's design and functionality goes to them:
