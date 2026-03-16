@@ -1,153 +1,114 @@
-// This configuration merges the module content and red color scheme
-// from the previous version with the structural brackets and advanced
-// image settings from the first provided JSON.
 
 {
     "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
-
-    // --- LOGO CONFIGURATION (Using kitty for advanced image display) ---
     "logo": {
-        // Changed to "kitty" for more robust image rendering (especially in tmux/kitty terminal)
-        "type": "kitty",
-
-        // !!! IMPORTANT: Replace this placeholder path with the actual path to your picture.
-        //"source": "YOUR IMAGE PATH HERE THEN UNCOMMENT",
-
-        // Image display settings
-        "height": 20,
-        "width": 35,
-        "position": "left",
-        "padding": {
-            "top": 5,
-            "right": 4
-        }
+    	"source": "path to your image here",
+    	"type": "kitty",
+      	"height": 21,
+      	"width": 30,
+      	"padding": {
+    		"top": 3
+      	}
     },
-
     "display": {
-        "separator": " "
+          "separator": " ➜  "
     },
-
     "modules": [
-        // --- COMPUTER SECTION (Bracketed) ---
-        {
-            "type": "custom",
-            "format": "\u001b[1;31m┌───────────── * Computer * ──────────────┐\u001b[0m"
-        },
-        {
-            "type": "title",
-            // Key updated to use bracket style
-            "key": "\u001b[1;31m│ ├󰇄 Host:\u001b[0m",
-            "format": "\u001b[0m{user-name}@{host-name}"
-        },
-        {
-            "type": "custom",
-            "format": "\u001b[1;31m└────────────────────────────────────────┘\u001b[0m"
-        },
-        {
-            "type": "custom",
-            "format": ""
-        },
-
-        // --- SYSTEMS SECTION (Bracketed) ---
-        {
-            "type": "custom",
-            "format": "\u001b[1;31m┌───────────── * Systems * ──────────────┐\u001b[0m"
-        },
-        {
+        "break",
+        "break",
+        "break",
+         {
             "type": "os",
-            "key": "\u001b[1;31m│ ├󰣇 OS:\u001b[0m" // Uses red color + bracket prefix
+            "key": "OS   ",
+            "keyColor": "31",  // = color1
         },
         {
             "type": "kernel",
-            "key": "\u001b[1;31m│ ├󰌽 Kernel:\u001b[0m"
-        },
-        {
-            "type": "uptime",
-            "key": "\u001b[1;31m│ ├󰥔 Uptime:\u001b[0m"
+            "key": " ├  ",
+            "keyColor": "31",
         },
         {
             "type": "packages",
-            "key": "\u001b[1;31m│ ├󰏖 Packages:\u001b[0m"
+            "format": "{} (pacman)",
+            "key": " ├ 󰏖 ",
+            "keyColor": "31",
         },
         {
             "type": "shell",
-            "key": "\u001b[1;31m└ └ Shell:\u001b[0m" // Last item in section uses L-bracket
+            "key": " └  ",
+            "keyColor": "31",
         },
-        {
-            "type": "custom",
-            "format": "\u001b[1;31m└────────────────────────────────────────┘\u001b[0m"
-        },
-
-        {
-            "type": "custom",
-            "format": ""
-        },
-
-        // --- DISPLAYS SECTION (Bracketed) ---
-        {
-            "type": "custom",
-            "format": "\u001b[1;31m┌──────────── * Displays * ──────────────┐\u001b[0m"
-        },
-        {
-            "type": "display",
-            "key": "\u001b[1;31m│ ├󰍹 Resolution:\u001b[0m",
-            "format": "{1}x{2} @ {3}Hz"
-        },
-        {
-            "type": "de",
-            "key": "\u001b[1;31m│ ├󰧨 DE:\u001b[0m"
-        },
+        "break",
         {
             "type": "wm",
-            "key": "\u001b[1;31m│ ├ WM:\u001b[0m"
+            "key": "WM   ",
+            "keyColor": "32",
+        },
+        {
+            "type": "wmtheme",
+            "key": " ├ 󰉼 ",
+            "keyColor": "32",
+        },
+        {
+            "type": "icons",
+            "key": " ├ 󰀻 ",
+            "keyColor": "32",
+        },
+        {
+            "type": "cursor",
+            "key": " ├  ",
+            "keyColor": "32",
         },
         {
             "type": "terminal",
-            "key": "\u001b[1;31m│ ├ Terminal:\u001b[0m"
+            "key": " ├  ",
+            "keyColor": "32",
         },
         {
             "type": "terminalfont",
-            "key": "\u001b[1;31m└ └ Font:\u001b[0m"
+            "key": " └  ",
+            "keyColor": "32",
         },
-        {
-            "type": "custom",
-            "format": "\u001b[1;31m└────────────────────────────────────────┘\u001b[0m"
-        },
-
-        {
-            "type": "custom",
-            "format": ""
-        },
-
-        // --- HARDWARE SECTION (Bracketed) ---
-        {
-            "type": "custom",
-            "format": "\u001b[1;31m┌──────────── * Hardware * ──────────────┐\u001b[0m"
-        },
+        "break",
         {
             "type": "host",
-            "key": "\u001b[1;31m│ ├󰌢 Host:\u001b[0m",
-            "format": "{2}"
+            "format": "{5} {1} Type {2}",
+            "key": "PC   ",
+            "keyColor": "33",
         },
         {
             "type": "cpu",
-            "key": "\u001b[1;31m│ ├󰻠 CPU:\u001b[0m"
+            "format": "{1} ({3}) @ {7} GHz",
+            "key": " ├  ",
+            "keyColor": "33",
         },
         {
             "type": "gpu",
-            "key": "\u001b[1;31m│ ├󰢮 GPU:\u001b[0m"
+            "format": "{1} {2} @ {12} GHz",
+            "key": " ├ 󰢮 ",
+            "keyColor": "33",
         },
         {
             "type": "memory",
-            "key": "\u001b[1;31m│ ├󰍛 Memory:\u001b[0m"
+            "key": " ├  ",
+            "keyColor": "33",
+        },
+        {
+            "type": "swap",
+            "key": " ├ 󰓡 ",
+            "keyColor": "33",
         },
         {
             "type": "disk",
-            "key": "\u001b[1;31m└ └󰋊 Disk:\u001b[0m"
+            "key": " ├ 󰋊 ",
+            "keyColor": "33",
         },
         {
-            "type": "custom",
-            "format": "\u001b[1;31m└────────────────────────────────────────┘\u001b[0m"
-        }
+            "type": "monitor",
+            "key": " └  ",
+            "keyColor": "33",
+        },
+        "break",
+        "break",
     ]
 }
