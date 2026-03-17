@@ -31,7 +31,7 @@ Once in the system open ~/.config/hypr/startup.conf and uncomment the Nvidia sec
 
 ### Credits
 
-The primary application bar (`noctalia-shell-git`) is based on the exceptional work by **Noctalia**. All credit for the bar's design and functionality goes to them:
+The primary application bar (`noctalia-shell`) is based on the exceptional work by **Noctalia**. All credit for the bar's design and functionality goes to them:
 
 > [**noctalia-dev/noctalia-shell**](https://github.com/noctalia-dev/noctalia-shell)
 
