@@ -97,7 +97,10 @@ PACKAGES=(
     ffmpegthumbnailer         # Lib for Tumbler 
     freetype2                 # Lib for Tumbler
     libgepub                  # Lib for Tumbler
-    gvfs                      # Needed for Thunar to see drives 
+    gvfs                      # Needed for Thunar to see drives
+    gvfs-afc                  # Apple Device Support
+    gvfs-mtp                  # Android/MTP Device Support
+    gvfs-smb                  # SMB Support 
     ntfs-3g                   # NTFS filesystem support
     dosfstools                # DOS filesystem utilities
     exfatprogs                # exFAT filesystem support
