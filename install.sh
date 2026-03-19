@@ -119,6 +119,10 @@ PACKAGES=(
     qt6ct                     # Qt Settings
     yaru-icon-theme           # Yaru Icons
     humanity-icon-theme       # Humanity Icons
+    noto-fonts-emoji          # Fonts
+    ttf-dejavu                # Fonts
+    ttf-symbola               # Fonts
+    obsidian                  # Markdown Text Editor
 )
 
 OPTIONALPKG=(
