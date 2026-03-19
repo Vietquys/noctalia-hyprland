@@ -126,6 +126,9 @@ PACKAGES=(
     ttf-dejavu                # Fonts
     ttf-symbola               # Fonts
     obsidian                  # Markdown Text Editor
+    gst-plugins-good          # Gstreamer Plugins 
+    gst-plugins-ugly          # Gstreamer Plugins
+    gst-libav                 # Gstreamer Plugins
 )
 
 OPTIONALPKG=(
