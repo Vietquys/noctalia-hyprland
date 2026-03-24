@@ -96,6 +96,10 @@ chmod +x ./install.sh
 sudo ./install.sh
 ```
 
+### Additional Install Notes
+
+For extra setup and troubleshooting details (including Arch ISO Wi-Fi setup before archinstall), see [InstallNotes.md](InstallNotes.md).
+
 
 Note: The install.sh script handles package installation via your package manager and deploys the dotfiles. Any existing config files that would be overwritten are first backed up with a `.bak.<timestamp>` suffix in `~/.config`, allowing `uninstall.sh` to restore them later.
 
