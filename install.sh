@@ -37,12 +37,22 @@ fi
 # --- Configuration ---
 # echilon, tonekneeo, xnyte
 # Get the actual user running the script (not root)
-if [ -n "$SUDO_USER" ]; then
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
     ACTUAL_USER="$SUDO_USER"
 else
-    ACTUAL_USER=$(who | awk '{print $1}' | head -n 1)
+    ACTUAL_USER=$(logname 2>/dev/null)
 fi
-ACTUAL_USER_HOME=$(eval echo ~$ACTUAL_USER)
+
+if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
+    echo "ERROR: Could not determine a non-root target user. Run this script with sudo from your normal user account."
+    exit 1
+fi
+
+ACTUAL_USER_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
+if [ -z "$ACTUAL_USER_HOME" ] || [ ! -d "$ACTUAL_USER_HOME" ]; then
+    echo "ERROR: Could not determine home directory for user '$ACTUAL_USER'."
+    exit 1
+fi
 
 # Define the list of packages to install using pacman
 PACKAGES=(
@@ -142,6 +152,7 @@ OPTIONALPKG=(
     mission-center            # Task Manager, Sleek
     protonplus                # Proton manager
     deadbeef                  # Modular Audio Player
+    visual-studio-code-bin    # Visual Studio Code editor
 )
 
 # Descriptions for optional packages
@@ -151,10 +162,12 @@ declare -A OPTIONALPKG_DESC=(
     [mission-center]="Sleek task manager / system monitor"
     [protonplus]="Proton/Wine manager for gaming"
     [deadbeef]="Modular audio player"
+    [visual-studio-code-bin]="Visual Studio Code editor"
 )
 
 REPO_DIR=$(pwd)
 CONFIG_DIR="$ACTUAL_USER_HOME/.config"
+DDCUTIL_ENABLED=0
 
 # Validate repo directory
 if [ ! -d "$REPO_DIR/.config" ]; then
@@ -221,6 +234,31 @@ check_if_chaotic_repo_was_added() {
     echo $?
 }
 
+ensure_multilib_repo_enabled() {
+    msg "Ensuring multilib repository is enabled.."
+
+    local pacman_conf="/etc/pacman.conf"
+
+    if grep -Eq '^[[:space:]]*\[multilib\][[:space:]]*$' "$pacman_conf"; then
+        info "multilib is already enabled"
+        return
+    fi
+
+    if grep -Eq '^[[:space:]]*#[[:space:]]*\[multilib\][[:space:]]*$' "$pacman_conf"; then
+        info "Found commented multilib block, enabling it"
+        sed -i '/^[[:space:]]*#[[:space:]]*\[multilib\][[:space:]]*$/,/^[[:space:]]*#[[:space:]]*Include[[:space:]]*=[[:space:]]*\/etc\/pacman\.d\/mirrorlist[[:space:]]*$/ s/^[[:space:]]*#[[:space:]]*//' "$pacman_conf"
+    else
+        info "multilib block not found, appending it"
+        {
+            echo ""
+            echo "[multilib]"
+            echo "Include = /etc/pacman.d/mirrorlist"
+        } >> "$pacman_conf"
+    fi
+
+    msg "Done configuring multilib repository"
+}
+
 reorder_pacman_conf() {
     msg "Ensuring correct repository order in pacman.conf.."
     
@@ -276,6 +314,8 @@ EOF
 setup_chaotic_aur() {
     print_header
     msg "Setting up Chaotic-AUR repository.."
+
+    ensure_multilib_repo_enabled
     
     local is_chaotic_added="$(check_if_chaotic_repo_was_added)"
     if [ $is_chaotic_added -eq 0 ]; then
@@ -374,6 +414,35 @@ deploy_configs() {
         
         # Fix ownership since we're running as root
         chown -R "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR"
+
+        # If ddcutil was enabled, make sure Noctalia uses DDC monitor control.
+        if [ "$DDCUTIL_ENABLED" -eq 1 ] && [ -f "$CONFIG_DIR/noctalia/settings.json" ]; then
+            python3 - "$CONFIG_DIR/noctalia/settings.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+brightness = data.get("brightness")
+if not isinstance(brightness, dict):
+    brightness = {}
+    data["brightness"] = brightness
+
+brightness["enableDdcSupport"] = True
+
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=4)
+    f.write("\n")
+PY
+            if [ $? -eq 0 ]; then
+                chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/noctalia/settings.json"
+                echo "Enabled Noctalia DDC support in settings.json."
+            else
+                echo "Warning: Could not update Noctalia DDC setting automatically."
+            fi
+        fi
     else
         echo "ERROR: Failed to copy configuration files."
     fi
@@ -473,6 +542,16 @@ setup_ddcutil() {
             echo "ERROR: Failed to install ddcutil."
             return 1
         fi
+
+        # Install ddcutil-service (AUR, D-Bus activated)
+        if command -v yay >/dev/null 2>&1; then
+            sudo -u "$ACTUAL_USER" yay -S --noconfirm --needed --answerclean None --answerdiff None ddcutil-service
+            if [ $? -ne 0 ]; then
+                echo "Warning: Failed to install ddcutil-service from AUR."
+            fi
+        else
+            echo "Warning: yay was not found; skipping ddcutil-service installation."
+        fi
         
         # Load i2c-dev module
         modprobe i2c-dev
@@ -485,6 +564,10 @@ setup_ddcutil() {
         if [ $? -ne 0 ]; then
             echo "Warning: Failed to configure i2c-dev autoload."
         fi
+
+        # Reload udev rules so ddcutil permissions are applied immediately
+        udevadm control --reload-rules
+        udevadm trigger
         
         # List i2c devices
         echo "Available i2c devices:"
@@ -495,6 +578,13 @@ setup_ddcutil() {
         if [ $? -ne 0 ]; then
             echo "Warning: Failed to add user to i2c group."
         fi
+
+        # Quick runtime validation; service is D-Bus activated and should respond.
+        if ! sudo -u "$ACTUAL_USER" ddcutil-client detect >/dev/null 2>&1; then
+            echo "Warning: ddcutil D-Bus detect failed right now. This can still work after relogin/reboot."
+        fi
+
+        DDCUTIL_ENABLED=1
         
         echo "ddcutil setup complete. You may need to log out and back in for group changes to take effect."
     else
@@ -558,6 +648,35 @@ copy_backup_configs() {
             
             # Fix ownership since we're running as root
             chown -R "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR"
+
+            # Keep DDC support enabled if ddcutil setup was selected.
+            if [ "$DDCUTIL_ENABLED" -eq 1 ] && [ -f "$CONFIG_DIR/noctalia/settings.json" ]; then
+                python3 - "$CONFIG_DIR/noctalia/settings.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+brightness = data.get("brightness")
+if not isinstance(brightness, dict):
+    brightness = {}
+    data["brightness"] = brightness
+
+brightness["enableDdcSupport"] = True
+
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=4)
+    f.write("\n")
+PY
+                if [ $? -eq 0 ]; then
+                    chown "$ACTUAL_USER:$ACTUAL_USER" "$CONFIG_DIR/noctalia/settings.json"
+                    echo "Re-enabled Noctalia DDC support after backup restore."
+                else
+                    echo "Warning: Could not re-enable Noctalia DDC support after backup restore."
+                fi
+            fi
             
             # If running under Hyprland, reload it to apply config changes
             if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
@@ -614,12 +733,9 @@ if [ $? -ne 0 ]; then
     echo "Warning: Failed to enable Bluetooth service."
 fi
 
-echo "Installation complete!"
+echo "Base package installation complete!"
 echo "--------------------------------------------------------"
-echo "Next Steps:"
-echo "1. Review customization points in README.md."
-echo "2. Reboot your system."
-echo "3. Select the Hyprland session at your login manager."
+echo "Proceeding with post-install configuration..."
 echo "--------------------------------------------------------"
 
 # Install noctalia-shell and noctaliia-qs via yay
@@ -639,14 +755,14 @@ setup_ddcutil
 # Set default file manager to Thunar
 set_default_file_manager
 
+# Deploy Configurations
+deploy_configs
+
 # Copy backup config files if available
 copy_backup_configs
 
 # Create Thunar bookmarks
 create_thunar_bookmarks
-
-# Deploy Configurations
-deploy_configs
 
 # Set Script Permissions
 set_permissions
