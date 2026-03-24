@@ -129,6 +129,8 @@ PACKAGES=(
     gst-plugins-good          # Gstreamer Plugins 
     gst-plugins-ugly          # Gstreamer Plugins
     gst-libav                 # Gstreamer Plugins
+    obs-studio-stable         # OBS Streaming Software
+    luajit                    # OBS dependency
 )
 
 OPTIONALPKG=(
