@@ -23,6 +23,75 @@ while true; do
     esac
 done
 
+# --- Printer support selection ---
+INSTALL_PRINTER_SUPPORT=0
+while true; do
+    echo ""
+    read -r -p "Do you want printer support? (y/n): " printer_choice
+    case "$printer_choice" in
+        y|Y|yes|YES)
+            INSTALL_PRINTER_SUPPORT=1
+            echo "Printer support packages will be installed after gaming packages."
+            break
+            ;;
+        n|N|no|NO)
+            INSTALL_PRINTER_SUPPORT=0
+            echo "Skipping printer support installation."
+            break
+            ;;
+        *)
+            echo "Please answer 'y' or 'n'."
+            ;;
+    esac
+done
+
+# --- Gaming package selection ---
+INSTALL_GAMING_PACKAGES=0
+while true; do
+    echo ""
+    read -r -p "Do you want to install gaming packages? (y/n): " gaming_choice
+    case "$gaming_choice" in
+        y|Y|yes|YES)
+            INSTALL_GAMING_PACKAGES=1
+            echo "Gaming packages will be installed after core packages."
+            break
+            ;;
+        n|N|no|NO)
+            INSTALL_GAMING_PACKAGES=0
+            echo "Skipping gaming package installation."
+            break
+            ;;
+        *)
+            echo "Please answer 'y' or 'n'."
+            ;;
+    esac
+done
+
+# --- Audio mode selection ---
+AUDIO_MODE="easyeffects"
+while true; do
+    echo ""
+    echo "Audio setup option:"
+    echo "  1. EasyEffects (default)"
+    echo "  2. Dolby Atmos support"
+    read -r -p "Choose audio option (1-2): " audio_choice
+    case "$audio_choice" in
+        1|"")
+            AUDIO_MODE="easyeffects"
+            echo "Using EasyEffects setup."
+            break
+            ;;
+        2)
+            AUDIO_MODE="dolby"
+            echo "Dolby Atmos profile will be applied after installation."
+            break
+            ;;
+        *)
+            echo "Please enter 1 or 2."
+            ;;
+    esac
+done
+
 # Ensure running as root
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root." >&2
@@ -141,16 +210,21 @@ PACKAGES=(
     gst-libav                 # Gstreamer Plugins
     obs-studio-stable         # OBS Streaming Software
     luajit                    # OBS dependency
-    easyeffects               # Audio Effects
-    lsp-plugins-lv2           # Easyeffects Plugins
-    calf                      # Easyeffects Plugins
 )
+
+# Audio stack is selected at runtime.
+if [ "$AUDIO_MODE" = "easyeffects" ]; then
+    PACKAGES+=(
+        easyeffects               # Audio Effects
+        lsp-plugins-lv2           # Easyeffects Plugins
+        calf                      # Easyeffects Plugins
+    )
+fi
 
 OPTIONALPKG=(
     upscayl-desktop-git       # Upscaler for images on the fly
     video-downloader          # Download videos on your system, avoid sketchy websites! Yipee!
     mission-center            # Task Manager, Sleek
-    protonplus                # Proton manager
     deadbeef                  # Modular Audio Player
     visual-studio-code-bin    # Visual Studio Code editor
 )
@@ -160,7 +234,6 @@ declare -A OPTIONALPKG_DESC=(
     [upscayl-desktop-git]="Image upscaler (desktop GUI)"
     [video-downloader]="Download videos locally from various sources"
     [mission-center]="Sleek task manager / system monitor"
-    [protonplus]="Proton/Wine manager for gaming"
     [deadbeef]="Modular audio player"
     [visual-studio-code-bin]="Visual Studio Code editor"
 )
@@ -353,6 +426,45 @@ remove_conflicting_packages() {
         echo "Conflicting packages removed successfully."
     else
         echo "Warning: Some packages could not be removed (they may not be installed)."
+    fi
+}
+
+install_gaming_packages() {
+    if [ "$INSTALL_GAMING_PACKAGES" -ne 1 ]; then
+        return 0
+    fi
+
+    echo -e "\n--- Gaming Packages Installation ---"
+    echo "Installing gaming packages (interactive prompts enabled)..."
+
+    # Repo packages via pacman (no --noconfirm so user can review prompts)
+    pacman -S --needed steam mangohud lib32-mangohud protonplus wine winetricks protontricks lutris heroic-games-launcher-bin jdk21-openjdk
+    if [ $? -ne 0 ]; then
+        echo "Warning: Some pacman gaming packages failed to install."
+    fi
+}
+
+install_printer_support_packages() {
+    if [ "$INSTALL_PRINTER_SUPPORT" -ne 1 ]; then
+        return 0
+    fi
+
+    echo -e "\n--- Printer Support Installation ---"
+    pacman -S --noconfirm --needed \
+        hspell libvoikko hunspell aspell nuspell reflector pinta lib32-libpulse ttf-ms-fonts \
+        cups cups-filters cups-pdf hplip gutenprint system-config-printer \
+        foomatic-db-gutenprint-ppds foomatic-db-nonfree-ppds foomatic-db-ppds \
+        foomatic-db-nonfree foomatic-db foomatic-db-engine \
+        python-pyqt5 python-reportlab python-pyqt6
+
+    if [ $? -ne 0 ]; then
+        echo "Warning: Some printer support packages failed to install."
+    fi
+
+    echo "Enabling and starting CUPS service..."
+    systemctl enable --now cups
+    if [ $? -ne 0 ]; then
+        echo "Warning: Failed to enable CUPS service."
     fi
 }
 
@@ -692,6 +804,34 @@ PY
     fi
 }
 
+# Apply optional Dolby PipeWire profile
+apply_dolby_pipewire_profile() {
+    if [ "$AUDIO_MODE" != "dolby" ]; then
+        return 0
+    fi
+
+    local pipewire_source="$REPO_DIR/pipewire"
+    local pipewire_target="$CONFIG_DIR/pipewire"
+
+    echo -e "\n--- Applying Dolby PipeWire Profile ---"
+
+    if [ ! -d "$pipewire_source" ]; then
+        echo "Warning: Dolby profile selected, but no '$pipewire_source' folder was found."
+        return 0
+    fi
+
+    echo "Copying Dolby PipeWire config to $pipewire_target..."
+    sudo -u "$ACTUAL_USER" mkdir -p "$pipewire_target"
+    cp -rf "$pipewire_source"/* "$pipewire_target"/
+
+    if [ $? -eq 0 ]; then
+        chown -R "$ACTUAL_USER:$ACTUAL_USER" "$pipewire_target"
+        echo "Dolby PipeWire profile applied successfully."
+    else
+        echo "Warning: Failed to apply Dolby PipeWire profile."
+    fi
+}
+
 # --- Main Installation Flow ---
 
 echo "Starting Hyprland Dotfiles Installation..."
@@ -713,6 +853,12 @@ if [ $? -ne 0 ]; then
     echo "ERROR: Failed to install core packages. Aborting installation."
     exit 1
 fi
+
+# 2.5 Optional gaming packages (interactive)
+install_gaming_packages
+
+# 2.6 Optional printer support
+install_printer_support_packages
 
 # 3. Optional install packages
 install_optional_packages
@@ -766,6 +912,9 @@ create_thunar_bookmarks
 
 # Set Script Permissions
 set_permissions
+
+# Apply optional Dolby PipeWire profile
+apply_dolby_pipewire_profile
 
 # Reboot confirmation
 echo ""
