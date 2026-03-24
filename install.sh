@@ -131,6 +131,9 @@ PACKAGES=(
     gst-libav                 # Gstreamer Plugins
     obs-studio-stable         # OBS Streaming Software
     luajit                    # OBS dependency
+    easyeffects               # Audio Effects
+    lsp-plugins-lv2           # Easyeffects Plugins
+    calf                      # Easyeffects Plugins
 )
 
 OPTIONALPKG=(
