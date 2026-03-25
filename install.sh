@@ -4,6 +4,63 @@
 export LC_MESSAGES=C
 export LANG=C
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+
+append_unique_package() {
+    local -n package_list="$1"
+    local package="$2"
+    local existing_package
+
+    for existing_package in "${package_list[@]}"; do
+        if [ "$existing_package" = "$package" ]; then
+            return 0
+        fi
+    done
+
+    package_list+=("$package")
+}
+
+# Ensure running as root before collecting interactive input.
+if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root." >&2
+    exit 1
+fi
+
+if [ ! -f /etc/pacman.conf ]; then
+    echo "File [/etc/pacman.conf] not found!"
+    exit 1
+fi
+
+# --- Configuration ---
+# echilon, tonekneeo, xnyte
+# Get the actual user running the script (not root)
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+    ACTUAL_USER="$SUDO_USER"
+else
+    ACTUAL_USER=$(logname 2>/dev/null)
+fi
+
+if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
+    echo "ERROR: Could not determine a non-root target user. Run this script with sudo from your normal user account."
+    exit 1
+fi
+
+ACTUAL_USER_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
+if [ -z "$ACTUAL_USER_HOME" ] || [ ! -d "$ACTUAL_USER_HOME" ]; then
+    echo "ERROR: Could not determine home directory for user '$ACTUAL_USER'."
+    exit 1
+fi
+
+REPO_DIR="$SCRIPT_DIR"
+CONFIG_DIR="$ACTUAL_USER_HOME/.config"
+DDCUTIL_ENABLED=0
+
+# Validate repo directory
+if [ ! -d "$REPO_DIR/.config" ]; then
+    echo "ERROR: Script must be run from the repository root directory."
+    exit 1
+fi
+
 # --- Pre-flight confirmation ---
 echo "This script will install custom dot-files for Hyprland and the Chaotic AUR. Use only with fresh install of Hyprland (Vanilla Arch Linux only). Use at your own risk."
 while true; do
@@ -46,19 +103,77 @@ while true; do
 done
 
 # --- Gaming package selection ---
-INSTALL_GAMING_PACKAGES=0
+GAMING_SELECTED_PACKAGES=()
 while true; do
     echo ""
-    read -r -p "Do you want to install gaming packages? (y/n): " gaming_choice
-    case "$gaming_choice" in
+    echo "Gaming Packages (select one or more):"
+    echo "  1. steam"
+    echo "  2. mangohud"
+    echo "  3. protonplus"
+    echo "  4. wine"
+    echo "  5. winetricks"
+    echo "  6. protontricks"
+    echo "  7. lutris"
+    echo "  8. heroic-games-launcher-bin"
+    echo "  9. prismlauncher"
+    echo " 10. goverlay"
+    echo " 11. mangojuice"
+    echo "  0. Skip gaming package installation"
+    echo ""
+    read -r -p "Enter your choices (comma or space separated, e.g., 1,2,5 or 1 2 5): " gaming_choices
+
+    if [ "$gaming_choices" = "0" ] || [ -z "$gaming_choices" ]; then
+        echo "Skipping gaming package installation."
+        GAMING_SELECTED_PACKAGES=()
+        break
+    fi
+
+    gaming_choices=$(echo "$gaming_choices" | tr ',' ' ')
+    GAMING_SELECTED_PACKAGES=()
+    invalid_choice=false
+
+    for choice in $gaming_choices; do
+        case "$choice" in
+            1) append_unique_package GAMING_SELECTED_PACKAGES steam ;;
+            2) append_unique_package GAMING_SELECTED_PACKAGES mangohud ;;
+            3) append_unique_package GAMING_SELECTED_PACKAGES protonplus ;;
+            4) append_unique_package GAMING_SELECTED_PACKAGES wine ;;
+            5) append_unique_package GAMING_SELECTED_PACKAGES winetricks ;;
+            6) append_unique_package GAMING_SELECTED_PACKAGES protontricks ;;
+            7) append_unique_package GAMING_SELECTED_PACKAGES lutris ;;
+            8) append_unique_package GAMING_SELECTED_PACKAGES heroic-games-launcher-bin ;;
+            9) append_unique_package GAMING_SELECTED_PACKAGES prismlauncher ;;
+            10) append_unique_package GAMING_SELECTED_PACKAGES goverlay ;;
+            11) append_unique_package GAMING_SELECTED_PACKAGES mangojuice ;;
+            *)
+                echo "Invalid choice: $choice"
+                invalid_choice=true
+                ;;
+        esac
+    done
+
+    if [ "$invalid_choice" = false ]; then
+        echo "Selected gaming packages: ${GAMING_SELECTED_PACKAGES[*]}"
+        break
+    fi
+
+    echo "Please try again with valid choices."
+done
+
+# --- Bluetooth package selection ---
+INSTALL_BLUETOOTH_PACKAGES=0
+while true; do
+    echo ""
+    read -r -p "Do you want to install Bluetooth packages and enable the Bluetooth service? (y/n): " bluetooth_choice
+    case "$bluetooth_choice" in
         y|Y|yes|YES)
-            INSTALL_GAMING_PACKAGES=1
-            echo "Gaming packages will be installed after core packages."
+            INSTALL_BLUETOOTH_PACKAGES=1
+            echo "Bluetooth packages will be installed and service will be enabled."
             break
             ;;
         n|N|no|NO)
-            INSTALL_GAMING_PACKAGES=0
-            echo "Skipping gaming package installation."
+            INSTALL_BLUETOOTH_PACKAGES=0
+            echo "Skipping Bluetooth package installation and service."
             break
             ;;
         *)
@@ -92,36 +207,83 @@ while true; do
     esac
 done
 
-# Ensure running as root
-if [[ $EUID -ne 0 ]]; then
-  echo "This script must be run as root." >&2
-  exit 1
-fi
+# --- Audio/Video player selection ---
+AUDIO_VIDEO_PACKAGES=()
+INSTALL_VLC_PLUGINS_ALL=0
+while true; do
+    echo ""
+    echo "Audio/Video Players (select one or more):"
+    echo "  1. mpv (lightweight video player)"
+    echo "  2. vlc (versatile media player)"
+    echo "  3. dragon (simple KDE video player)"
+    echo "  4. haruna (modern KDE video player)"
+    echo "  5. deadbeef (modular audio player)"
+    echo "  6. rhythmbox (GNOME music player)"
+    echo "  7. elisa (lightweight KDE music player)"
+    echo "  0. Skip audio/video player installation"
+    echo ""
+    read -r -p "Enter your choices (comma or space separated, e.g., 1,2,5 or 1 2 5): " av_choices
+    
+    if [ "$av_choices" = "0" ] || [ -z "$av_choices" ]; then
+        echo "Skipping audio/video player installation."
+        break
+    fi
+    
+    # Convert input to array, handling both comma and space separation
+    av_choices=$(echo "$av_choices" | tr ',' ' ')
+    
+    invalid_choice=false
+    for choice in $av_choices; do
+        case "$choice" in
+            1) append_unique_package AUDIO_VIDEO_PACKAGES mpv ;;
+            2) append_unique_package AUDIO_VIDEO_PACKAGES vlc ;;
+            3) append_unique_package AUDIO_VIDEO_PACKAGES dragon ;;
+            4) append_unique_package AUDIO_VIDEO_PACKAGES haruna ;;
+            5) append_unique_package AUDIO_VIDEO_PACKAGES deadbeef ;;
+            6) append_unique_package AUDIO_VIDEO_PACKAGES rhythmbox ;;
+            7) append_unique_package AUDIO_VIDEO_PACKAGES elisa ;;
+            *)
+                echo "Invalid choice: $choice"
+                invalid_choice=true
+                ;;
+        esac
+    done
+    
+    if [ "$invalid_choice" = false ]; then
+        if [ ${#AUDIO_VIDEO_PACKAGES[@]} -gt 0 ]; then
+            echo "Selected packages: ${AUDIO_VIDEO_PACKAGES[*]}"
 
-if [ ! -f /etc/pacman.conf ]; then
-  echo "File [/etc/pacman.conf] not found!"
-  exit 1
-fi
-
-# --- Configuration ---
-# echilon, tonekneeo, xnyte
-# Get the actual user running the script (not root)
-if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
-    ACTUAL_USER="$SUDO_USER"
-else
-    ACTUAL_USER=$(logname 2>/dev/null)
-fi
-
-if [ -z "$ACTUAL_USER" ] || [ "$ACTUAL_USER" = "root" ]; then
-    echo "ERROR: Could not determine a non-root target user. Run this script with sudo from your normal user account."
-    exit 1
-fi
-
-ACTUAL_USER_HOME=$(getent passwd "$ACTUAL_USER" | cut -d: -f6)
-if [ -z "$ACTUAL_USER_HOME" ] || [ ! -d "$ACTUAL_USER_HOME" ]; then
-    echo "ERROR: Could not determine home directory for user '$ACTUAL_USER'."
-    exit 1
-fi
+            for pkg in "${AUDIO_VIDEO_PACKAGES[@]}"; do
+                if [ "$pkg" = "vlc" ]; then
+                    while true; do
+                        echo ""
+                        read -r -p "Do you want to install vlc-plugins-all? If you choose no, you will need to install VLC plugins manually later. (y/n): " vlc_plugins_choice
+                        case "$vlc_plugins_choice" in
+                            y|Y|yes|YES)
+                                INSTALL_VLC_PLUGINS_ALL=1
+                                echo "vlc-plugins-all will be installed alongside VLC."
+                                break
+                                ;;
+                            n|N|no|NO)
+                                INSTALL_VLC_PLUGINS_ALL=0
+                                echo "Skipping vlc-plugins-all. You can install VLC plugins manually later."
+                                break
+                                ;;
+                            *)
+                                echo "Please answer 'y' or 'n'."
+                                ;;
+                        esac
+                    done
+                    break
+                fi
+            done
+        fi
+        break
+    fi
+    
+    echo "Please try again with valid choices."
+    AUDIO_VIDEO_PACKAGES=()
+done
 
 # Define the list of packages to install using pacman
 PACKAGES=(
@@ -135,9 +297,6 @@ PACKAGES=(
     wlsunset                  # Nightlight for quickshell
     fish                      # Shell
     fastfetch                 # System Info Display
-    bluez                     # Bluetooth utilities
-    bluez-utils               # Bluetooth utilities
-    blueman                   # Bluetooth manager
     satty                     # Screenshot annotation tool
     grim                      # Screenshot utility for wayland
     slurp                     # Screenshot selector for region
@@ -204,12 +363,9 @@ PACKAGES=(
     noto-fonts-emoji          # Fonts
     ttf-dejavu                # Fonts
     ttf-symbola               # Fonts
-    obsidian                  # Markdown Text Editor
     gst-plugins-good          # Gstreamer Plugins 
     gst-plugins-ugly          # Gstreamer Plugins
     gst-libav                 # Gstreamer Plugins
-    obs-studio-stable         # OBS Streaming Software
-    luajit                    # OBS dependency
 )
 
 # Audio stack is selected at runtime.
@@ -225,7 +381,8 @@ OPTIONALPKG=(
     upscayl-desktop-git       # Upscaler for images on the fly
     video-downloader          # Download videos on your system, avoid sketchy websites! Yipee!
     mission-center            # Task Manager, Sleek
-    deadbeef                  # Modular Audio Player
+    obsidian                  # Markdown Text Editor
+    obs-studio-stable         # OBS Streaming Software
     visual-studio-code-bin    # Visual Studio Code editor
 )
 
@@ -234,19 +391,13 @@ declare -A OPTIONALPKG_DESC=(
     [upscayl-desktop-git]="Image upscaler (desktop GUI)"
     [video-downloader]="Download videos locally from various sources"
     [mission-center]="Sleek task manager / system monitor"
-    [deadbeef]="Modular audio player"
+    [obsidian]="Markdown text editor"
+    [obs-studio-stable]="OBS streaming and recording software"
     [visual-studio-code-bin]="Visual Studio Code editor"
 )
 
-REPO_DIR=$(pwd)
-CONFIG_DIR="$ACTUAL_USER_HOME/.config"
-DDCUTIL_ENABLED=0
-
-# Validate repo directory
-if [ ! -d "$REPO_DIR/.config" ]; then
-    echo "ERROR: Script must be run from the repository root directory."
-    exit 1
-fi
+SELECTED_OPTIONAL_PACKAGES=()
+BROWSER_CHOICE=6
 
 # --- Color Functions ---
 disable_colors() {
@@ -303,8 +454,7 @@ error() {
 }
 
 check_if_chaotic_repo_was_added() {
-    cat /etc/pacman.conf | grep "chaotic-aur" > /dev/null
-    echo $?
+    grep -q "chaotic-aur" /etc/pacman.conf
 }
 
 ensure_multilib_repo_enabled() {
@@ -339,15 +489,15 @@ reorder_pacman_conf() {
     local pacman_conf_backup="/etc/pacman.conf.bak.$(date +%s)"
     
     info "Backup current config"
-    cp $pacman_conf $pacman_conf_backup
+    cp "$pacman_conf" "$pacman_conf_backup"
     
     # Remove any existing Chaotic-AUR entries
-    sed -i '/^\[chaotic-aur\]/,/^$/d' $pacman_conf
+    sed -i '/^\[chaotic-aur\]/,/^$/d' "$pacman_conf"
     
     # Add Chaotic-AUR at the end
-    echo "" >> $pacman_conf
-    echo "[chaotic-aur]" >> $pacman_conf
-    echo "Include = /etc/pacman.d/chaotic-mirrorlist" >> $pacman_conf
+    echo "" >> "$pacman_conf"
+    echo "[chaotic-aur]" >> "$pacman_conf"
+    echo "Include = /etc/pacman.d/chaotic-mirrorlist" >> "$pacman_conf"
     
     info "Chaotic-AUR positioned at the end of pacman.conf"
     msg "Done configuring repository order"
@@ -358,13 +508,27 @@ install_chaotic_aur() {
     printf "${CYAN}${BOLD}  🔑 Adding Chaotic-AUR GPG key...${ALL_OFF}\n"
 
     info "Adding Chaotic-AUR GPG key"
-    pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
-    pacman-key --lsign-key 3056513887B78AEB
+    if ! pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com; then
+        error "Failed to fetch Chaotic-AUR GPG key"
+        return 1
+    fi
+
+    if ! pacman-key --lsign-key 3056513887B78AEB; then
+        error "Failed to locally sign the Chaotic-AUR GPG key"
+        return 1
+    fi
 
     printf "${CYAN}${BOLD}  📦 Installing Chaotic-AUR packages...${ALL_OFF}\n"
     info "Installing Chaotic-AUR keyring and mirrorlist"
-    pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'
-    pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'
+    if ! pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'; then
+        error "Failed to install chaotic-keyring"
+        return 1
+    fi
+
+    if ! pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'; then
+        error "Failed to install chaotic-mirrorlist"
+        return 1
+    fi
 
     msg "Done installing Chaotic-AUR repository."
 }
@@ -390,12 +554,13 @@ setup_chaotic_aur() {
 
     ensure_multilib_repo_enabled
     
-    local is_chaotic_added="$(check_if_chaotic_repo_was_added)"
-    if [ $is_chaotic_added -eq 0 ]; then
+    if check_if_chaotic_repo_was_added; then
         info "Chaotic-AUR repo is already installed!"
         info "Skipping installation steps"
     else
-        install_chaotic_aur
+        if ! install_chaotic_aur; then
+            return 1
+        fi
         create_chaotic_mirrorlist
     fi
     
@@ -430,15 +595,26 @@ remove_conflicting_packages() {
 }
 
 install_gaming_packages() {
-    if [ "$INSTALL_GAMING_PACKAGES" -ne 1 ]; then
+    if [ ${#GAMING_SELECTED_PACKAGES[@]} -eq 0 ]; then
         return 0
     fi
+
+    for pkg in "${GAMING_SELECTED_PACKAGES[@]}"; do
+        case "$pkg" in
+            mangohud)
+                append_unique_package GAMING_SELECTED_PACKAGES lib32-mangohud
+                ;;
+            prismlauncher)
+                append_unique_package GAMING_SELECTED_PACKAGES jdk21-openjdk
+                ;;
+        esac
+    done
 
     echo -e "\n--- Gaming Packages Installation ---"
     echo "Installing gaming packages (interactive prompts enabled)..."
 
     # Repo packages via pacman (no --noconfirm so user can review prompts)
-    pacman -S --needed steam mangohud lib32-mangohud protonplus wine winetricks protontricks lutris heroic-games-launcher-bin jdk21-openjdk
+    pacman -S --needed "${GAMING_SELECTED_PACKAGES[@]}"
     if [ $? -ne 0 ]; then
         echo "Warning: Some pacman gaming packages failed to install."
     fi
@@ -468,26 +644,139 @@ install_printer_support_packages() {
     fi
 }
 
+install_bluetooth_packages() {
+    if [ "$INSTALL_BLUETOOTH_PACKAGES" -ne 1 ]; then
+        return 0
+    fi
+
+    echo -e "\n--- Bluetooth Installation ---"
+    echo "Installing Bluetooth packages..."
+    pacman -S --noconfirm --needed bluez bluez-utils blueman
+
+    if [ $? -ne 0 ]; then
+        echo "Warning: Some Bluetooth packages failed to install."
+    fi
+
+    echo "Enabling Bluetooth service..."
+    systemctl enable bluetooth
+
+    if [ $? -ne 0 ]; then
+        echo "Warning: Failed to enable Bluetooth service."
+    fi
+}
+
+install_audio_video_packages() {
+    if [ ${#AUDIO_VIDEO_PACKAGES[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    echo -e "\n--- Audio/Video Players Installation ---"
+    local vlc_plugins_package=""
+    if [ "$INSTALL_VLC_PLUGINS_ALL" -eq 1 ]; then
+        vlc_plugins_package="vlc-plugins-all"
+    fi
+    
+    echo "Installing selected audio/video packages: ${AUDIO_VIDEO_PACKAGES[*]}..."
+    if [ -n "$vlc_plugins_package" ]; then
+        echo "Also installing: $vlc_plugins_package"
+        pacman -S --noconfirm --needed "${AUDIO_VIDEO_PACKAGES[@]}" "$vlc_plugins_package"
+    else
+        pacman -S --noconfirm --needed "${AUDIO_VIDEO_PACKAGES[@]}"
+    fi
+
+    if [ $? -ne 0 ]; then
+        echo "Warning: Some audio/video packages failed to install."
+    else
+        echo "Audio/Video players installed successfully."
+    fi
+}
+
+# Function to prompt optional package selection
+prompt_optional_packages() {
+    local optional_choices
+    local pkg
+    local desc
+    local choice
+    local pkg_index
+    local invalid_choice
+    local menu_index
+
+    echo -e "\n--- Optional Packages Installation ---"
+
+    while true; do
+        echo "Choose one or more optional packages:"
+        menu_index=1
+        for pkg in "${OPTIONALPKG[@]}"; do
+            desc="${OPTIONALPKG_DESC[$pkg]}"
+            if [ -n "$desc" ]; then
+                echo "  $menu_index. $pkg ($desc)"
+            else
+                echo "  $menu_index. $pkg"
+            fi
+            menu_index=$((menu_index + 1))
+        done
+        echo "  0. Skip optional package installation"
+        echo ""
+
+        read -r -p "Enter your choices (comma or space separated, e.g., 1,2 or 1 2): " optional_choices
+
+        if [ "$optional_choices" = "0" ] || [ -z "$optional_choices" ]; then
+            echo "Skipping optional package installation."
+            SELECTED_OPTIONAL_PACKAGES=()
+            return 0
+        fi
+
+        optional_choices=$(echo "$optional_choices" | tr ',' ' ')
+        SELECTED_OPTIONAL_PACKAGES=()
+        invalid_choice=false
+
+        for choice in $optional_choices; do
+            if ! [[ "$choice" =~ ^[0-9]+$ ]]; then
+                echo "Invalid choice: $choice"
+                invalid_choice=true
+                continue
+            fi
+
+            if [ "$choice" -lt 1 ] || [ "$choice" -gt "${#OPTIONALPKG[@]}" ]; then
+                echo "Invalid choice: $choice"
+                invalid_choice=true
+                continue
+            fi
+
+            pkg_index=$((choice - 1))
+            append_unique_package SELECTED_OPTIONAL_PACKAGES "${OPTIONALPKG[$pkg_index]}"
+        done
+
+        if [ "$invalid_choice" = false ]; then
+            for pkg in "${SELECTED_OPTIONAL_PACKAGES[@]}"; do
+                if [ "$pkg" = "obs-studio-stable" ]; then
+                    append_unique_package SELECTED_OPTIONAL_PACKAGES luajit
+                    break
+                fi
+            done
+
+            return 0
+        fi
+
+        echo "Please try again with valid choices."
+    done
+}
+
 # Function to handle optional package installation
 install_optional_packages() {
-    echo -e "\n--- Optional Packages Installation ---"
-    echo "The following optional packages will be installed if you choose yes:"
-    for pkg in "${OPTIONALPKG[@]}"; do
-        desc="${OPTIONALPKG_DESC[$pkg]}"
-        if [ -n "$desc" ]; then
-            echo "  - $pkg: $desc"
-        else
-            echo "  - $pkg"
-        fi
-    done
-    echo ""
-    read -r -p "Do you want to install these optional packages? (y/N): " response
-    
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-        echo "Installing optional packages via pacman..."
-        pacman -S --noconfirm "${OPTIONALPKG[@]}"
-    else
+    if [ ${#SELECTED_OPTIONAL_PACKAGES[@]} -eq 0 ]; then
         echo "Skipping optional package installation."
+        return 0
+    fi
+
+    echo -e "\n--- Optional Packages Installation ---"
+    echo "Installing selected optional packages: ${SELECTED_OPTIONAL_PACKAGES[*]}..."
+    pacman -S --noconfirm --needed "${SELECTED_OPTIONAL_PACKAGES[@]}"
+
+    if [ $? -ne 0 ]; then
+        echo "Warning: Some optional packages failed to install."
+    else
+        echo "Optional packages installed successfully."
     fi
 }
 
@@ -574,69 +863,104 @@ set_permissions() {
     fi
 }
 
-# Browser installation
-install_browser() {
+# Browser selection prompt
+prompt_browser_installation() {
     echo -e "\n--- Browser Installation ---"
     echo "Which browser would you like to install?"
     echo "  1. Vivaldi"
     echo "  2. Brave"
     echo "  3. Zen Browser"
     echo "  4. Firefox"
-    echo "  5. Skip browser installation"
+    echo "  5. LibreWolf"
+    echo "  6. Skip browser installation"
     echo ""
     
     while true; do
-        read -r -p "Enter your choice (1-5): " browser_choice
+        read -r -p "Enter your choice (1-6): " browser_choice
         case "$browser_choice" in
             1)
-                echo "Installing Vivaldi..."
-                pacman -S --noconfirm vivaldi
-                if [ $? -eq 0 ]; then
-                    echo "Vivaldi installed successfully!"
-                else
-                    echo "ERROR: Failed to install Vivaldi."
-                fi
+                BROWSER_CHOICE=1
                 break
                 ;;
             2)
-                echo "Installing Brave..."
-                pacman -S --noconfirm brave-bin
-                if [ $? -eq 0 ]; then
-                    echo "Brave installed successfully!"
-                else
-                    echo "ERROR: Failed to install Brave."
-                fi
+                BROWSER_CHOICE=2
                 break
                 ;;
             3)
-                echo "Installing Zen Browser..."
-                pacman -S --noconfirm zen-browser-bin
-                if [ $? -eq 0 ]; then
-                    echo "Zen Browser installed successfully!"
-                else
-                    echo "ERROR: Failed to install Zen Browser."
-                fi
+                BROWSER_CHOICE=3
                 break
                 ;;
             4)
-                echo "Installing Firefox..."
-                pacman -S --noconfirm firefox
-                if [ $? -eq 0 ]; then
-                    echo "Firefox installed successfully!"
-                else
-                    echo "ERROR: Failed to install Firefox."
-                fi
+                BROWSER_CHOICE=4
                 break
                 ;;
             5)
-                echo "Skipping browser installation."
+                BROWSER_CHOICE=5
+                break
+                ;;
+            6)
+                BROWSER_CHOICE=6
                 break
                 ;;
             *)
-                echo "Invalid choice. Please enter a number between 1 and 5."
+                echo "Invalid choice. Please enter a number between 1 and 6."
                 ;;
         esac
     done
+}
+
+# Browser installation
+install_browser() {
+    case "$BROWSER_CHOICE" in
+        1)
+            echo "Installing Vivaldi..."
+            pacman -S --noconfirm vivaldi
+            if [ $? -eq 0 ]; then
+                echo "Vivaldi installed successfully!"
+            else
+                echo "ERROR: Failed to install Vivaldi."
+            fi
+            ;;
+        2)
+            echo "Installing Brave..."
+            pacman -S --noconfirm brave-bin
+            if [ $? -eq 0 ]; then
+                echo "Brave installed successfully!"
+            else
+                echo "ERROR: Failed to install Brave."
+            fi
+            ;;
+        3)
+            echo "Installing Zen Browser..."
+            pacman -S --noconfirm zen-browser-bin
+            if [ $? -eq 0 ]; then
+                echo "Zen Browser installed successfully!"
+            else
+                echo "ERROR: Failed to install Zen Browser."
+            fi
+            ;;
+        4)
+            echo "Installing Firefox..."
+            pacman -S --noconfirm firefox
+            if [ $? -eq 0 ]; then
+                echo "Firefox installed successfully!"
+            else
+                echo "ERROR: Failed to install Firefox."
+            fi
+            ;;
+        5)
+            echo "Installing LibreWolf..."
+            pacman -S --noconfirm librewolf
+            if [ $? -eq 0 ]; then
+                echo "LibreWolf installed successfully!"
+            else
+                echo "ERROR: Failed to install LibreWolf."
+            fi
+            ;;
+        *)
+            echo "Skipping browser installation."
+            ;;
+    esac
 }
 
 # Setup ddcutil for monitor brightness control
@@ -836,8 +1160,15 @@ apply_dolby_pipewire_profile() {
 
 echo "Starting Hyprland Dotfiles Installation..."
 
+# Collect install choices before repository setup and package installation.
+prompt_optional_packages
+prompt_browser_installation
+
 # 0. Setup Chaotic-AUR Repository
-setup_chaotic_aur
+if ! setup_chaotic_aur; then
+    echo "ERROR: Failed to set up the Chaotic-AUR repository. Aborting installation."
+    exit 1
+fi
 
 # 1. Remove conflicting packages
 remove_conflicting_packages
@@ -860,6 +1191,12 @@ install_gaming_packages
 # 2.6 Optional printer support
 install_printer_support_packages
 
+# 2.7 Optional Bluetooth support
+install_bluetooth_packages
+
+# 2.8 Optional audio/video player installation
+install_audio_video_packages
+
 # 3. Optional install packages
 install_optional_packages
 
@@ -869,14 +1206,6 @@ sudo -u "$ACTUAL_USER" xdg-user-dirs-update
 
 if [ $? -ne 0 ]; then
     echo "Warning: Failed to update user directories."
-fi
-
-# 7. Enable Bluetooth service
-echo "Enabling Bluetooth service..."
-systemctl enable bluetooth
-
-if [ $? -ne 0 ]; then
-    echo "Warning: Failed to enable Bluetooth service."
 fi
 
 echo "Base package installation complete!"
