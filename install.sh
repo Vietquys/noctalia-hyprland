@@ -373,6 +373,7 @@ PACKAGES=(
     cpupower                  # CPU frequency scaling utilities
     upower                    # Power management service
     gpu-screen-recorder       # Screen Recorder
+    qt6-base                  # Qt6 base libraries and tools
     qt6ct                     # Qt Settings
     yaru-icon-theme           # Yaru Icons
     humanity-icon-theme       # Humanity Icons
@@ -1236,7 +1237,7 @@ echo "--------------------------------------------------------"
 
 # Install noctalia-shell and noctaliia-qs via yay
 echo "Installing noctalia-shell and noctaliia-qs via yay..."
-sudo -u "$ACTUAL_USER" yay -S --noconfirm noctalia-shell noctalia-qs
+sudo -u "$ACTUAL_USER" yay -S --noconfirm aur/noctalia-shell aur/noctalia-qs
 
 if [ $? -ne 0 ]; then
     echo "Warning: Failed to install noctalia-shell and/or noctaliia-qs."
