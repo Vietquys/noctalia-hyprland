@@ -1235,9 +1235,18 @@ echo "--------------------------------------------------------"
 echo "Proceeding with post-install configuration..."
 echo "--------------------------------------------------------"
 
+# Refresh and upgrade system packages before AUR installs
+echo "Updating system packages before installing noctalia-shell and noctalia-qs..."
+sudo pacman -Syu --noconfirm
+
+if [ $? -ne 0 ]; then
+    echo "ERROR: Failed to update system packages. Aborting installation."
+    exit 1
+fi
+
 # Install noctalia-shell and noctaliia-qs via yay
 echo "Installing noctalia-shell and noctaliia-qs via yay..."
-sudo -u "$ACTUAL_USER" yay -S --noconfirm aur/noctalia-shell aur/noctalia-qs
+sudo -u "$ACTUAL_USER" yay -S --noconfirm noctalia-shell noctalia-qs
 
 if [ $? -ne 0 ]; then
     echo "Warning: Failed to install noctalia-shell and/or noctaliia-qs."
