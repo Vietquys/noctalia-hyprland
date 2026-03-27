@@ -108,7 +108,7 @@ while true; do
     echo ""
     echo "Gaming Packages (select one or more):"
     echo "  1. steam"
-    echo "  2. mangohud"
+    echo "  2. mangohud (standalone no gui)"
     echo "  3. protonplus"
     echo "  4. wine"
     echo "  5. winetricks"
@@ -118,14 +118,19 @@ while true; do
     echo "  9. prismlauncher"
     echo " 10. goverlay"
     echo " 11. mangojuice"
+    echo "  a. Install all gaming packages"
     echo "  0. Skip gaming package installation"
     echo ""
-    read -r -p "Enter your choices (comma or space separated, e.g., 1,2,5 or 1 2 5): " gaming_choices
+    read -r -p "Enter your choices (comma or space separated, e.g., 1,2,5 or 1 2 5, or a for all): " gaming_choices
 
     if [ "$gaming_choices" = "0" ] || [ -z "$gaming_choices" ]; then
         echo "Skipping gaming package installation."
         GAMING_SELECTED_PACKAGES=()
         break
+    fi
+
+    if [[ "$gaming_choices" =~ ^[aA]$ ]]; then
+        gaming_choices="1 2 3 4 5 6 7 8 9 10 11"
     fi
 
     gaming_choices=$(echo "$gaming_choices" | tr ',' ' ')
@@ -187,10 +192,16 @@ AUDIO_MODE="easyeffects"
 while true; do
     echo ""
     echo "Audio setup option:"
+    echo "  0. Skip EasyEffects and Dolby setup"
     echo "  1. EasyEffects (default)"
     echo "  2. Dolby Atmos support"
-    read -r -p "Choose audio option (1-2): " audio_choice
+    read -r -p "Choose audio option (0-2): " audio_choice
     case "$audio_choice" in
+        0)
+            AUDIO_MODE="none"
+            echo "Skipping EasyEffects and Dolby setup."
+            break
+            ;;
         1|"")
             AUDIO_MODE="easyeffects"
             echo "Using EasyEffects setup."
@@ -202,7 +213,7 @@ while true; do
             break
             ;;
         *)
-            echo "Please enter 1 or 2."
+            echo "Please enter 0, 1 or 2."
             ;;
     esac
 done
@@ -220,13 +231,18 @@ while true; do
     echo "  5. deadbeef (modular audio player)"
     echo "  6. rhythmbox (GNOME music player)"
     echo "  7. elisa (lightweight KDE music player)"
+    echo "  a. Install all audio/video players"
     echo "  0. Skip audio/video player installation"
     echo ""
-    read -r -p "Enter your choices (comma or space separated, e.g., 1,2,5 or 1 2 5): " av_choices
+    read -r -p "Enter your choices (comma or space separated, e.g., 1,2,5 or 1 2 5, or a for all): " av_choices
     
     if [ "$av_choices" = "0" ] || [ -z "$av_choices" ]; then
         echo "Skipping audio/video player installation."
         break
+    fi
+
+    if [[ "$av_choices" =~ ^[aA]$ ]]; then
+        av_choices="1 2 3 4 5 6 7"
     fi
     
     # Convert input to array, handling both comma and space separation
@@ -716,14 +732,19 @@ prompt_optional_packages() {
             menu_index=$((menu_index + 1))
         done
         echo "  0. Skip optional package installation"
+        echo "  a. Install all optional packages"
         echo ""
 
-        read -r -p "Enter your choices (comma or space separated, e.g., 1,2 or 1 2): " optional_choices
+        read -r -p "Enter your choices (comma or space separated, e.g., 1,2 or 1 2, or a for all): " optional_choices
 
         if [ "$optional_choices" = "0" ] || [ -z "$optional_choices" ]; then
             echo "Skipping optional package installation."
             SELECTED_OPTIONAL_PACKAGES=()
             return 0
+        fi
+
+        if [[ "$optional_choices" =~ ^[aA]$ ]]; then
+            optional_choices=$(seq -s ' ' 1 "${#OPTIONALPKG[@]}")
         fi
 
         optional_choices=$(echo "$optional_choices" | tr ',' ' ')
